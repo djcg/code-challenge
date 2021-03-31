@@ -9,6 +9,7 @@ import com.hospital.codechallengeapi.model.response.*;
 import com.hospital.codechallengeapi.repository.AppointmentRepository;
 import com.hospital.codechallengeapi.repository.DoctorRepository;
 import com.hospital.codechallengeapi.repository.PatientRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -22,143 +23,154 @@ import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class DoctorService {
 
-  private final DoctorRepository doctorRepository;
-  private final AppointmentRepository appointmentRepository;
-  private final PatientRepository patientRepository;
-  private final Clock clock;
+    private final DoctorRepository doctorRepository;
+    private final AppointmentRepository appointmentRepository;
+    private final PatientRepository patientRepository;
+    private final Clock clock;
 
-  @Autowired
-  public DoctorService(
-      DoctorRepository doctorRepository,
-      AppointmentRepository appointmentRepository,
-      PatientRepository patientRepository,
-      Clock clock) {
-    this.doctorRepository = doctorRepository;
-    this.appointmentRepository = appointmentRepository;
-    this.patientRepository = patientRepository;
-    this.clock = clock;
-  }
+    @Autowired
+    public DoctorService(
+            DoctorRepository doctorRepository,
+            AppointmentRepository appointmentRepository,
+            PatientRepository patientRepository,
+            Clock clock) {
+        this.doctorRepository = doctorRepository;
+        this.appointmentRepository = appointmentRepository;
+        this.patientRepository = patientRepository;
+        this.clock = clock;
+    }
 
-  public Page<DoctorResponse> getDoctors(int page, int pageSize) {
-    PageRequest pageRequest = PageRequest.of(page - 1, pageSize);
-    Page<DoctorEntity> doctors = this.doctorRepository.findAll(pageRequest);
+    public Page<DoctorResponse> getDoctors(int page, int pageSize) {
+        PageRequest pageRequest = PageRequest.of(page - 1, pageSize);
+        Page<DoctorEntity> doctors = this.doctorRepository.findAll(pageRequest);
 
-    return doctors.map(
-        doctor ->
-            new DoctorResponse(
-                doctor.getHospitalUserEntity().getId(),
-                doctor.getHospitalUserEntity().getName(),
-                doctor.getSpecialty()));
-  }
+        return doctors.map(
+                doctor ->
+                        new DoctorResponse(
+                                doctor.getHospitalUserEntity().getId(),
+                                doctor.getHospitalUserEntity().getName(),
+                                doctor.getSpecialty()));
+    }
 
-  public Page<AppointmentResponse> getAppointments(UUID doctorId, int page, int pageSize) {
-    PageRequest pageRequest = PageRequest.of(page - 1, pageSize);
-    Page<AppointmentEntity> appointments =
-        this.appointmentRepository
-            .findAppointmentEntitiesByDoctorIdAndPatientIdIsNotNullOrderByStartDate(
-                doctorId, pageRequest);
+    public Page<AppointmentResponse> getAppointments(UUID doctorId, int page, int pageSize) {
+        PageRequest pageRequest = PageRequest.of(page - 1, pageSize);
+        Page<AppointmentEntity> appointments =
+                this.appointmentRepository
+                        .findAppointmentEntitiesByDoctorIdAndPatientIdIsNotNullOrderByStartDate(
+                                doctorId, pageRequest);
 
-    return appointments.map(
-        appointment ->
-            AppointmentResponse.builder()
-                .doctorName(appointment.getDoctor().getHospitalUserEntity().getName())
-                .patientName(appointment.getPatient().getHospitalUserEntity().getName())
-                .specialty(appointment.getDoctor().getSpecialty())
-                .startDate(appointment.getStartDate())
-                .endDate(appointment.getEndDate())
-                .build());
-  }
+        return appointments.map(
+                appointment ->
+                        AppointmentResponse.builder()
+                                .doctorName(appointment.getDoctor().getHospitalUserEntity().getName())
+                                .patientName(appointment.getPatient().getHospitalUserEntity().getName())
+                                .specialty(appointment.getDoctor().getSpecialty())
+                                .startDate(appointment.getStartDate())
+                                .endDate(appointment.getEndDate())
+                                .build());
+    }
 
-  public IdResponse createAppointment(UUID doctorId, UUID patientId, Instant appointmentDate) {
+    public IdResponse createAppointment(UUID doctorId, UUID patientId, Instant appointmentDate) {
 
-    Instant endDate = appointmentDate.plus(1, ChronoUnit.HOURS);
+        Instant endDate = appointmentDate.plus(1, ChronoUnit.HOURS);
 
-    validateAppointmentHour(doctorId, appointmentDate, endDate);
+        validateAppointmentHour(doctorId, appointmentDate, endDate);
 
-    DoctorEntity doctorEntity = doctorRepository.getOne(doctorId);
-    PatientEntity patientEntity = patientRepository.getOne(patientId);
+        Optional<DoctorEntity> optionalDoctorEntity = doctorRepository.findById(doctorId);
 
-    return createAppointment(doctorEntity, patientEntity, appointmentDate, endDate, null);
-  }
-
-  public IdResponse scheduleLeave(UUID doctorId, LeaveRequest leaveRequest)
-      throws AppointmentCreationException {
-
-    validateAppointmentHour(doctorId, leaveRequest.getStartDate(), leaveRequest.getEndDate());
-
-    DoctorEntity doctorEntity = doctorRepository.getOne(doctorId);
-
-    return createAppointment(
-        doctorEntity,
-        null,
-        leaveRequest.getStartDate(),
-        leaveRequest.getEndDate(),
-        leaveRequest.getLeaveType());
-  }
-
-  public AvailabilityResponse getAvailability(UUID doctorId) {
-    Instant start = clock.instant().truncatedTo(ChronoUnit.HOURS);
-    Instant end = start.plus(7, ChronoUnit.DAYS);
-
-    List<AppointmentEntity> appointments =
-        this.appointmentRepository.findAppointmentEntitiesByDoctorIdAndStartDateBetween(
-            doctorId, start, end);
-
-    List<TimeSlot> availability = new ArrayList<>();
-    while (start.isBefore(end)) {
-      ZonedDateTime startZoneDateTime = start.atZone(ZoneId.of("UTC"));
-
-      if (startZoneDateTime.get(ChronoField.HOUR_OF_DAY) >= 9
-          && startZoneDateTime.get(ChronoField.HOUR_OF_DAY) <= 19) {
-        Instant finalStart = start;
-        if (appointments.stream()
-            .noneMatch(
-                appointmentEntity ->
-                    (finalStart.isAfter(appointmentEntity.getStartDate())
-                            || finalStart.compareTo(appointmentEntity.getStartDate()) == 0)
-                        && finalStart.isBefore(appointmentEntity.getEndDate()))) {
-          availability.add(
-              TimeSlot.builder().startDate(start).endDate(start.plus(1, ChronoUnit.HOURS)).build());
+        if(optionalDoctorEntity.isEmpty()) {
+          throw new AppointmentCreationException("Doctor with id " + doctorId + " does not exist");
         }
-      }
-      start = start.plus(1, ChronoUnit.HOURS);
+
+        PatientEntity patientEntity = patientRepository.getOne(patientId);
+
+        return createAppointment(optionalDoctorEntity.get(), patientEntity, appointmentDate, endDate, null);
     }
 
-    return new AvailabilityResponse(availability);
-  }
+    public IdResponse scheduleLeave(UUID doctorId, LeaveRequest leaveRequest)
+            throws AppointmentCreationException {
 
-  private IdResponse createAppointment(
-      DoctorEntity doctor,
-      PatientEntity patient,
-      Instant startAppointmentDate,
-      Instant endAppointmentDate,
-      String reason)
-      throws AppointmentCreationException {
+        if(leaveRequest.getEndDate() == null) {
+            leaveRequest.setEndDate(leaveRequest.getStartDate().plus(1, ChronoUnit.HOURS));
+        }
+        else if(leaveRequest.getEndDate().isBefore(leaveRequest.getStartDate())) {
+            throw new AppointmentCreationException("End date must be after start date");
+        }
 
-    AppointmentEntity appointmentEntity =
-        AppointmentEntity.builder()
-            .id(UUID.randomUUID())
-            .doctor(doctor)
-            .patient(patient)
-            .startDate(startAppointmentDate.truncatedTo(ChronoUnit.HOURS))
-            .endDate(endAppointmentDate.truncatedTo(ChronoUnit.HOURS))
-            .reason(reason)
-            .build();
-    return new IdResponse(this.appointmentRepository.save(appointmentEntity).getId());
-  }
+        validateAppointmentHour(doctorId, leaveRequest.getStartDate(), leaveRequest.getEndDate());
 
-  private void validateAppointmentHour(
-      UUID doctorId, Instant startAppointmentDate, Instant endAppointmentDate) {
-    if (!this.appointmentRepository
-        .findAppointmentEntitiesByDoctorIdAndStartDateIsLessThanEqualAndEndDateGreaterThanEqual(
-            doctorId, startAppointmentDate.truncatedTo(ChronoUnit.HOURS), endAppointmentDate.truncatedTo(ChronoUnit.HOURS))
-        .isEmpty()) {
-      throw new AppointmentCreationException("The selected date is already booked");
+        DoctorEntity doctorEntity = doctorRepository.getOne(doctorId);
+
+        return createAppointment(
+                doctorEntity,
+                null,
+                leaveRequest.getStartDate(),
+                leaveRequest.getEndDate(),
+                leaveRequest.getLeaveType());
     }
-  }
+
+    public AvailabilityResponse getAvailability(UUID doctorId) {
+        Instant start = clock.instant().truncatedTo(ChronoUnit.HOURS);
+        Instant end = start.plus(7, ChronoUnit.DAYS);
+
+        List<TimeSlot> availability = new ArrayList<>();
+        while (start.isBefore(end)) {
+            ZonedDateTime startZoneDateTime = start.atZone(ZoneId.of("UTC"));
+
+            if (startZoneDateTime.get(ChronoField.HOUR_OF_DAY) >= 9
+                    && startZoneDateTime.get(ChronoField.HOUR_OF_DAY) <= 19) {
+
+                try {
+                    validateAppointmentHour(doctorId, start, start.plus(1, ChronoUnit.HOURS));
+                    availability.add(
+                            TimeSlot.builder().startDate(start).endDate(start.plus(1, ChronoUnit.HOURS)).build());
+                } catch (AppointmentCreationException e) {
+                    log.debug(e.getMessage());
+                }
+
+            }
+            start = start.plus(1, ChronoUnit.HOURS);
+        }
+
+        return new AvailabilityResponse(availability);
+    }
+
+    private IdResponse createAppointment(
+            DoctorEntity doctor,
+            PatientEntity patient,
+            Instant startAppointmentDate,
+            Instant endAppointmentDate,
+            String reason)
+            throws AppointmentCreationException {
+
+        AppointmentEntity appointmentEntity =
+                AppointmentEntity.builder()
+                        .id(UUID.randomUUID())
+                        .doctor(doctor)
+                        .patient(patient)
+                        .startDate(startAppointmentDate.truncatedTo(ChronoUnit.HOURS))
+                        .endDate(endAppointmentDate.truncatedTo(ChronoUnit.HOURS))
+                        .reason(reason)
+                        .build();
+        return new IdResponse(this.appointmentRepository.save(appointmentEntity).getId());
+    }
+
+    private void validateAppointmentHour(
+            UUID doctorId, Instant startAppointmentDate, Instant endAppointmentDate) {
+        Instant startDate = startAppointmentDate.truncatedTo(ChronoUnit.HOURS);
+        Instant endDate = endAppointmentDate.truncatedTo(ChronoUnit.HOURS);
+        if (!this.appointmentRepository
+                .findAppointmentEntitiesByDoctorIdAndStartDateIsLessThanAndEndDateGreaterThan(
+                        doctorId, endDate, startDate)
+                .isEmpty()) {
+            throw new AppointmentCreationException("The selected date is already booked");
+        }
+    }
 }

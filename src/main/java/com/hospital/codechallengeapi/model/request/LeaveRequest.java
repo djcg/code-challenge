@@ -4,20 +4,24 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.hospital.codechallengeapi.validator.TimeSlotValidation;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Data;
 import lombok.ToString;
-import lombok.Value;
 
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
 import java.time.Instant;
 
-@Value
+@Data
 @AllArgsConstructor
 @Builder
 @ToString
 public class LeaveRequest {
 
+  @NotBlank
   @JsonProperty("leave_type")
   String leaveType;
 
+  @NotNull
   @TimeSlotValidation
   @JsonProperty("start_date")
   Instant startDate;

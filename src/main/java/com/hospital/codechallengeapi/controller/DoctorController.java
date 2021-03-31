@@ -44,6 +44,7 @@ public class DoctorController {
 
   @PostMapping
   @PreAuthorize("hasRole('ADMIN')")
+  @ResponseStatus(HttpStatus.CREATED)
   public IdResponse createDoctor(@RequestBody DoctorRegisterRequest doctorRegisterRequest)
       throws UserAlreadyExistsException {
     log.debug("Going to create a new doctor with payload {}", doctorRegisterRequest);
@@ -51,6 +52,7 @@ public class DoctorController {
   }
 
   @GetMapping
+  @PreAuthorize("hasRole('ADMIN') or hasRole('PATIENT') or hasRole('DOCTOR')")
   public Page<DoctorResponse> getDoctors(
       @RequestParam(required = false, defaultValue = "1") @Min(1) int page,
       @RequestParam(required = false, defaultValue = "10", name = "page_size") @Min(5)

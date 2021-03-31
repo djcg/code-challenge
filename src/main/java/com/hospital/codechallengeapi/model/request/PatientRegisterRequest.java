@@ -1,13 +1,23 @@
 package com.hospital.codechallengeapi.model.request;
 
-import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.ToString;
-import lombok.Value;
 
-@Value
-@AllArgsConstructor
+import javax.validation.constraints.NotBlank;
+
+
+@Getter
 @ToString
 public class PatientRegisterRequest extends RegisterRequest {
 
-  String symptoms;
+  private final String symptoms;
+
+  public PatientRegisterRequest(String symptoms) {
+    this.symptoms = symptoms;
+  }
+
+  public PatientRegisterRequest(@NotBlank String name, @NotBlank String username, @NotBlank String password, String symptoms) {
+    super(name, username, password);
+    this.symptoms = symptoms;
+  }
 }

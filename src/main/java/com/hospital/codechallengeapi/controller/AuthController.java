@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
+
 @Slf4j
 @RestController
 @RequestMapping("/auth")
@@ -25,14 +27,14 @@ public class AuthController {
 
   @PostMapping("/register")
   @ResponseStatus(HttpStatus.CREATED)
-  public IdResponse register(@RequestBody PatientRegisterRequest request)
+  public IdResponse register(@RequestBody @Valid PatientRegisterRequest request)
       throws UserAlreadyExistsException {
     log.debug("Going to create a new patient with payload {}", request);
     return userManagementService.createPatient(request);
   }
 
   @PostMapping("/login")
-  public JwtResponse login(@RequestBody LoginRequest request) {
+  public JwtResponse login(@RequestBody @Valid LoginRequest request) {
     log.debug("User {} is performing a login", request.getUsername());
     return userManagementService.login(request);
   }

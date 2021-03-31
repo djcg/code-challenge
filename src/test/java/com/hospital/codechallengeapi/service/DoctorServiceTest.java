@@ -26,6 +26,7 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -197,10 +198,10 @@ public class DoctorServiceTest {
     Instant now = clock.instant();
 
     when(appointmentRepository
-            .findAppointmentEntitiesByDoctorIdAndStartDateIsLessThanEqualAndEndDateGreaterThanEqual(
-                eq(id1), eq(now), eq(now.plus(1, ChronoUnit.HOURS))))
+            .findAppointmentEntitiesByDoctorIdAndStartDateIsLessThanAndEndDateGreaterThan(
+                eq(id1), eq(now.plus(1, ChronoUnit.HOURS)), eq(now)))
         .thenReturn(Collections.emptyList());
-    when(doctorRepository.getOne(eq(id1))).thenReturn(doctor1);
+    when(doctorRepository.findById(eq(id1))).thenReturn(Optional.of(doctor1));
     when(patientRepository.getOne(eq(id2))).thenReturn(patient1);
     when(appointmentRepository.save(any(AppointmentEntity.class))).thenReturn(appointmentEntity1);
 
@@ -220,8 +221,8 @@ public class DoctorServiceTest {
     Instant now = clock.instant();
 
     when(appointmentRepository
-            .findAppointmentEntitiesByDoctorIdAndStartDateIsLessThanEqualAndEndDateGreaterThanEqual(
-                eq(id1), eq(now), eq(now.plus(1, ChronoUnit.HOURS))))
+            .findAppointmentEntitiesByDoctorIdAndStartDateIsLessThanAndEndDateGreaterThan(
+                eq(id1), eq(now.plus(1, ChronoUnit.HOURS)), eq(now)))
         .thenReturn(List.of(appointmentEntity));
 
     AppointmentCreationException thrown =
@@ -251,7 +252,7 @@ public class DoctorServiceTest {
             .build();
 
     when(appointmentRepository
-            .findAppointmentEntitiesByDoctorIdAndStartDateIsLessThanEqualAndEndDateGreaterThanEqual(
+            .findAppointmentEntitiesByDoctorIdAndStartDateIsLessThanAndEndDateGreaterThan(
                 eq(id1), eq(now), eq(request.getEndDate())))
         .thenReturn(Collections.emptyList());
     when(doctorRepository.getOne(eq(id1))).thenReturn(doctor1);
@@ -278,8 +279,8 @@ public class DoctorServiceTest {
             .build();
 
     when(appointmentRepository
-            .findAppointmentEntitiesByDoctorIdAndStartDateIsLessThanEqualAndEndDateGreaterThanEqual(
-                eq(id1), eq(now), eq(request.getEndDate())))
+            .findAppointmentEntitiesByDoctorIdAndStartDateIsLessThanAndEndDateGreaterThan(
+                eq(id1), eq(request.getEndDate()), eq(now)))
         .thenReturn(List.of(appointmentEntity));
 
     AppointmentCreationException thrown =
@@ -299,8 +300,8 @@ public class DoctorServiceTest {
     Instant start = clock.instant();
     Instant end = start.plus(7, ChronoUnit.DAYS);
 
-    when(appointmentRepository.findAppointmentEntitiesByDoctorIdAndStartDateBetween(
-            eq(id1), eq(start), eq(end)))
+    when(appointmentRepository.findAppointmentEntitiesByDoctorIdAndStartDateIsLessThanAndEndDateGreaterThan(
+            eq(id1), eq(end), eq(start)))
         .thenReturn(Collections.emptyList());
 
     AvailabilityResponse response = doctorService.getAvailability(UUID.randomUUID());
@@ -319,8 +320,8 @@ public class DoctorServiceTest {
 
     AppointmentEntity appointmentEntity = AppointmentEntity.builder().startDate(start).endDate(start.plus(1, ChronoUnit.HOURS)).build();
 
-    when(appointmentRepository.findAppointmentEntitiesByDoctorIdAndStartDateBetween(
-            eq(id1), eq(start), eq(end)))
+    when(appointmentRepository.findAppointmentEntitiesByDoctorIdAndStartDateIsLessThanAndEndDateGreaterThan(
+            eq(id1), eq(start.plus(1, ChronoUnit.HOURS)), eq(start)))
             .thenReturn(List.of(appointmentEntity));
 
     AvailabilityResponse response = doctorService.getAvailability(id1);

@@ -3,7 +3,7 @@ package com.hospital.codechallengeapi.security.services;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.hospital.codechallengeapi.entity.HospitalUserEntity;
 import lombok.AllArgsConstructor;
-import lombok.Value;
+import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -13,20 +13,21 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-@Value
 @AllArgsConstructor
+@Getter
 public class UserPrinciple implements UserDetails {
   private static final long serialVersionUID = 1L;
 
-  UUID id;
+  private final UUID id;
 
-  String name;
+  private final String name;
 
-  String username;
+  private final String username;
 
-  @JsonIgnore String password;
+  @JsonIgnore
+  private final String password;
 
-  Collection<? extends GrantedAuthority> authorities;
+  private final Collection<? extends GrantedAuthority> authorities;
 
   public static UserPrinciple build(HospitalUserEntity user) {
     List<GrantedAuthority> authorities =

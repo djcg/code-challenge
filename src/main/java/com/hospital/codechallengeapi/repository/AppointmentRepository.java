@@ -13,13 +13,11 @@ import java.util.UUID;
 @Repository
 public interface AppointmentRepository extends JpaRepository<AppointmentEntity, UUID> {
 
-  Page<AppointmentEntity> findAppointmentEntitiesByDoctorIdAndPatientIdIsNotNullOrderByStartDate(
-      UUID doctorId, Pageable pageable);
+    Page<AppointmentEntity> findAppointmentEntitiesByDoctorIdAndPatientIdIsNotNullOrderByStartDate(
+            UUID doctorId, Pageable pageable);
 
-  List<AppointmentEntity> findAppointmentEntitiesByDoctorIdAndStartDateBetween(
-      UUID doctorId, Instant startDate, Instant endDate);
+    List<AppointmentEntity>
+    findAppointmentEntitiesByDoctorIdAndStartDateIsLessThanAndEndDateGreaterThan(
+            UUID doctorId, Instant startDate, Instant endDate);
 
-  List<AppointmentEntity>
-      findAppointmentEntitiesByDoctorIdAndStartDateIsLessThanEqualAndEndDateGreaterThanEqual(
-          UUID doctorId, Instant startDate, Instant endDate);
 }

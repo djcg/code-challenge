@@ -47,8 +47,8 @@ public class GlobalExceptionHandler {
   @ResponseStatus(HttpStatus.BAD_REQUEST)
   public ErrorResponse onMethodArgumentNotValidException(MethodArgumentNotValidException exception) {
     String message =
-            exception.getAllErrors().stream()
-                    .map(error -> "'" + error.getObjectName() + "' : " + error.getDefaultMessage())
+            exception.getBindingResult().getFieldErrors().stream()
+                    .map(error -> "'" + error.getField() + "' : " + error.getDefaultMessage())
                     .collect(Collectors.joining(", "));
     return new ErrorResponse(message);
   }
